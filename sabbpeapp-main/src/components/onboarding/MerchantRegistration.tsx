@@ -182,19 +182,31 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
 
     // Handle PAN card upload and OCR
     const handlePanUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+        console.log('🔥 PAN upload handler triggered');
+        console.log('Event:', event);
+        console.log('Files:', event.target.files);
+
         const file = event.target.files?.[0];
-        if (!file) return;
+        if (!file) {
+            console.log('❌ No file selected');
+            return;
+        }
+
+        console.log('✅ File selected:', file.name, file.size);
 
         if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+            console.log('❌ Invalid file type:', file.type);
             setOcrErrors(prev => ({ ...prev, pan: 'Please upload a valid image file (JPG, PNG) or PDF' }));
             return;
         }
 
         if (file.size > 5 * 1024 * 1024) {
+            console.log('❌ File too large:', file.size);
             setOcrErrors(prev => ({ ...prev, pan: 'File size must be less than 5MB' }));
             return;
         }
 
+        console.log('🚀 Starting PAN processing...');
         setPanCard(file);
         setPanProcessing(true);
         setPanProgress(0);
@@ -202,6 +214,7 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
 
         try {
             const result = await processWithOCR(file, 'PAN', setPanProgress);
+            console.log('✅ PAN OCR result:', result);
 
             if (result.panNumber) {
                 setFormData(prev => ({ ...prev, panNumber: result.panNumber! }));
@@ -215,17 +228,8 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
                 console.log('✅ Auto-filled name from PAN:', result.name);
             }
 
-            if (result.confidence > 0.6) {
-                console.log(`🎉 PAN card processed successfully with ${Math.round(result.confidence * 100)}% confidence`);
-            } else {
-                setOcrErrors(prev => ({
-                    ...prev,
-                    pan: `Low confidence (${Math.round(result.confidence * 100)}%). Please verify extracted data.`
-                }));
-            }
-
         } catch (error) {
-            console.error('PAN OCR failed:', error);
+            console.error('❌ PAN OCR failed:', error);
             setOcrErrors(prev => ({
                 ...prev,
                 pan: error instanceof Error ? error.message : 'OCR processing failed'
@@ -233,24 +237,37 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
         } finally {
             setPanProcessing(false);
             setPanProgress(100);
+            console.log('🏁 PAN processing completed');
         }
     }, [formData.fullName, processWithOCR]);
 
     // Handle Aadhaar card upload and OCR
     const handleAadhaarUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+        console.log('🔥 Aadhaar upload handler triggered');
+        console.log('Event:', event);
+        console.log('Files:', event.target.files);
+
         const file = event.target.files?.[0];
-        if (!file) return;
+        if (!file) {
+            console.log('❌ No file selected');
+            return;
+        }
+
+        console.log('✅ File selected:', file.name, file.size);
 
         if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+            console.log('❌ Invalid file type:', file.type);
             setOcrErrors(prev => ({ ...prev, aadhaar: 'Please upload a valid image file (JPG, PNG) or PDF' }));
             return;
         }
 
         if (file.size > 5 * 1024 * 1024) {
+            console.log('❌ File too large:', file.size);
             setOcrErrors(prev => ({ ...prev, aadhaar: 'File size must be less than 5MB' }));
             return;
         }
 
+        console.log('🚀 Starting Aadhaar processing...');
         setAadhaarCard(file);
         setAadhaarProcessing(true);
         setAadhaarProgress(0);
@@ -258,6 +275,7 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
 
         try {
             const result = await processWithOCR(file, 'AADHAAR', setAadhaarProgress);
+            console.log('✅ Aadhaar OCR result:', result);
 
             if (result.name) {
                 setFormData(prev => ({ ...prev, fullName: result.name! }));
@@ -271,17 +289,8 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
                 console.log('✅ Auto-filled Aadhaar number:', result.aadhaarNumber);
             }
 
-            if (result.confidence > 0.6) {
-                console.log(`🎉 Aadhaar card processed successfully with ${Math.round(result.confidence * 100)}% confidence`);
-            } else {
-                setOcrErrors(prev => ({
-                    ...prev,
-                    aadhaar: `Low confidence (${Math.round(result.confidence * 100)}%). Please verify extracted data.`
-                }));
-            }
-
         } catch (error) {
-            console.error('Aadhaar OCR failed:', error);
+            console.error('❌ Aadhaar OCR failed:', error);
             setOcrErrors(prev => ({
                 ...prev,
                 aadhaar: error instanceof Error ? error.message : 'OCR processing failed'
@@ -289,6 +298,7 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
         } finally {
             setAadhaarProcessing(false);
             setAadhaarProgress(100);
+            console.log('🏁 Aadhaar processing completed');
         }
     }, [processWithOCR]);
 
@@ -386,7 +396,13 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
                         type="file"
                         className="hidden"
                         accept={accept}
-                        onChange={onUpload}
+                        onChange={(e) => {
+                            console.log('📁 File input onChange triggered:', e.target.files);
+                            onUpload(e);
+                        }}
+                        onClick={() => {
+                            console.log('📁 File input clicked');
+                        }}
                         disabled={processing}
                     />
                 </label>
