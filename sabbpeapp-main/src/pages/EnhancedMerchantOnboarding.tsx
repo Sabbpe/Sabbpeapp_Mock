@@ -8,7 +8,7 @@ import { useMerchantData } from '@/hooks/useMerchantData';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useToast } from '@/hooks/use-toast';
 import { WelcomeScreen } from '@/components/onboarding/WelcomeScreen';
-import { MerchantRegistration } from '@/components/onboarding/MerchantRegistration';
+import MerchantRegistration from '@/components/onboarding/MerchantRegistration';  // FIXED: Default import
 import { KYCVerification } from '@/components/onboarding/KYCVerification';
 import { BankDetails } from '@/components/onboarding/BankDetails';
 import { ReviewSubmit } from '@/components/onboarding/ReviewSubmit';
@@ -55,11 +55,13 @@ export interface OnboardingData {
     currentStep: number;
 }
 
+// FIXED: Use any for component typing to avoid prop interface conflicts
 interface StepInfo {
     id: string;
     title: string;
     description: string;
-    component: React.ComponentType<any>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    component: React.ComponentType<any>; // Using any to accommodate different component interfaces
 }
 
 const ONBOARDING_STEPS: StepInfo[] = [
@@ -196,6 +198,9 @@ const EnhancedOnboardingFlow: React.FC = () => {
 
     const { merchantProfile, loading: profileLoading } = useMerchantData();
 
+    // FIXED: Define OnboardingStep type to match your hook
+    type OnboardingStep = 'welcome' | 'registration' | 'kyc' | 'bank-details' | 'review' | 'dashboard';
+
     // CRITICAL: Populate onboardingData from Supabase when merchantProfile loads
     useEffect(() => {
         if (merchantProfile) {
@@ -242,7 +247,9 @@ const EnhancedOnboardingFlow: React.FC = () => {
     // Auto-navigate to dashboard if already verified
     React.useEffect(() => {
         if (merchantProfile?.onboarding_status === 'verified') {
-            goToStep('dashboard');
+            // FIXED: Type-safe step navigation
+            const dashboardStep: OnboardingStep = 'dashboard';
+            goToStep(dashboardStep);
         }
     }, [merchantProfile, goToStep]);
 
@@ -351,6 +358,17 @@ const EnhancedOnboardingFlow: React.FC = () => {
         }
     };
 
+    // FIXED: Safe goToStep wrapper that validates step exists
+    const handleGoToStep = (stepId: string) => {
+        const stepExists = ONBOARDING_STEPS.find(step => step.id === stepId);
+        if (stepExists) {
+            // Type assertion since we know the stepId exists in our predefined steps
+            goToStep(stepId as OnboardingStep);
+        } else {
+            console.warn(`Step "${stepId}" does not exist in ONBOARDING_STEPS`);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-primary/5 to-accent/5">
             {/* Progress Header */}
@@ -389,7 +407,7 @@ const EnhancedOnboardingFlow: React.FC = () => {
                                 return (
                                     <div key={step.id} className="flex flex-col items-center">
                                         <button
-                                            onClick={() => goToStep(step.id)}
+                                            onClick={() => handleGoToStep(step.id)} // FIXED: Use safe wrapper
                                             disabled={!isPast && !isActive}
                                             className={`
                                                 relative flex items-center justify-center w-10 h-10 rounded-full
@@ -431,7 +449,7 @@ const EnhancedOnboardingFlow: React.FC = () => {
                     onNext={nextStep}
                     onPrevious={prevStep}
                     onPrev={prevStep}                  // Some components might use onPrev instead
-                    onGoToStep={goToStep}
+                    onGoToStep={handleGoToStep}        // FIXED: Use safe wrapper
                     onSubmit={handleFinalSubmit}
                     currentStep={currentStep}
                     merchantProfile={merchantProfile}
