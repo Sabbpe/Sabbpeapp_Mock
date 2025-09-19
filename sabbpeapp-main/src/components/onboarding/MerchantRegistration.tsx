@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -579,15 +579,16 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
 
     // Document upload component
     const DocumentUploadCard = ({ title, icon: Icon, file, processing, progress, onUpload, description, error }: DocumentUploadCardProps) => {
-        const handleClick = () => {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'image/*';
-            input.style.display = 'none';
-            input.onchange = (e) => onUpload(e as unknown as React.ChangeEvent<HTMLInputElement>);
-            document.body.appendChild(input);
-            input.click();
-            document.body.removeChild(input);
+        const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+        const handleAreaClick = () => {
+            if (processing) return;
+            fileInputRef.current?.click();
+        };
+
+        const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            console.log(`${title} file change triggered:`, e.target.files);
+            onUpload(e);
         };
 
         return (
@@ -602,13 +603,23 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        style={{ display: 'none' }}
+                        disabled={processing}
+                    />
+
                     <div
-                        onClick={handleClick}
+                        onClick={handleAreaClick}
                         className={`
                         flex flex-col items-center justify-center w-full h-32 
-                        border-2 border-dashed rounded-lg cursor-pointer transition-colors
+                        border-2 border-dashed rounded-lg transition-colors
+                        ${processing ? 'cursor-not-allowed' : 'cursor-pointer'}
                         ${file && !error ? 'border-green-300 bg-green-50' : 'border-gray-300 hover:bg-gray-50'}
-                        ${processing ? 'border-blue-300 bg-blue-50 cursor-not-allowed' : ''}
+                        ${processing ? 'border-blue-300 bg-blue-50' : ''}
                         ${error ? 'border-red-300 bg-red-50' : ''}
                     `}
                     >
