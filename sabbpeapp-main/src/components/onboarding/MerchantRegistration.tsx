@@ -1,3 +1,4 @@
+// JavaScript source code
 import React, { useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,11 +18,13 @@ import {
     Sparkles,
     CreditCard,
     Camera,
+    Trash2,
+    Eye,
     AlertTriangle,
     Settings
 } from 'lucide-react';
 
-// Supabase client
+// Supabase client (replace with your actual values)
 import { supabase } from '@/integrations/supabase/client';
 
 interface ExtractedData {
@@ -31,7 +34,6 @@ interface ExtractedData {
     dateOfBirth?: string;
     confidence: number;
 }
-
 interface DocumentUploadCardProps {
     title: string;
     icon: React.ComponentType<{ className?: string }>;
@@ -42,7 +44,6 @@ interface DocumentUploadCardProps {
     description: string;
     error?: string;
 }
-
 interface AutoFillInputProps {
     label: string;
     field: string;
@@ -62,7 +63,6 @@ interface FormData {
     gstNumber: string;
     hasGST: boolean;
 }
-
 interface MerchantRegistrationProps {
     onNext?: () => void;
     onPrev?: () => void;
@@ -72,8 +72,9 @@ interface MerchantRegistrationProps {
 
 // Real OCR Service using OCR.space
 class RealOCRService {
-    private apiKey = 'K88739396488957';
+    private apiKey = 'K88739396488957'; // Your OCR.space API key
 
+    // Image preprocessing with resizing
     private async preprocessImage(file: File): Promise<Blob> {
         return new Promise((resolve, reject) => {
             const canvas = document.createElement('canvas');
@@ -83,8 +84,10 @@ class RealOCRService {
             img.onload = function () {
                 console.log(`Original image size: ${img.width}x${img.height}`);
 
+                // Calculate resize if needed (max 2MB, max 2048px width)
                 let scaleFactor = 1;
                 const maxWidth = 2048;
+                const maxFileSize = 2 * 1024 * 1024; // 2MB
 
                 if (img.width > maxWidth) {
                     scaleFactor = maxWidth / img.width;
@@ -93,27 +96,32 @@ class RealOCRService {
                 canvas.width = img.width * scaleFactor;
                 canvas.height = img.height * scaleFactor;
 
-                ctx!.imageSmoothingEnabled = true;
-                ctx!.imageSmoothingQuality = 'high';
-                ctx!.drawImage(img, 0, 0, canvas.width, canvas.height);
+                // High-quality resizing
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-                const imageData = ctx!.getImageData(0, 0, canvas.width, canvas.height);
+                // Get image data for gentle enhancement
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const data = imageData.data;
 
+                // Apply gentle enhancements for better OCR
                 for (let i = 0; i < data.length; i += 4) {
+                    // Convert to grayscale
                     const r = data[i];
                     const g = data[i + 1];
                     const b = data[i + 2];
                     const gray = 0.299 * r + 0.587 * g + 0.114 * b;
 
+                    // Gentle contrast enhancement
                     let enhanced = ((gray - 128) * 1.15) + 128;
-                    enhanced += 5;
+                    enhanced += 5; // Slight brightness
                     enhanced = Math.max(0, Math.min(255, enhanced));
 
                     data[i] = data[i + 1] = data[i + 2] = enhanced;
                 }
 
-                ctx!.putImageData(imageData, 0, 0);
+                ctx.putImageData(imageData, 0, 0);
 
                 console.log(`Resized to: ${canvas.width}x${canvas.height} (${scaleFactor.toFixed(2)}x)`);
 
@@ -135,6 +143,7 @@ class RealOCRService {
         });
     }
 
+    // Document type detection
     private detectDocumentType(text: string): 'pan_card' | 'aadhaar_card' | 'unknown' {
         const cleanText = text.toUpperCase().replace(/[^A-Z0-9\s]/g, ' ');
 
@@ -170,13 +179,16 @@ class RealOCRService {
         }
     }
 
+    // Extract PAN card data
     private extractPANData(text: string): ExtractedData {
         const lines = text.split('\n').map(line => line.trim()).filter(line => line);
         const cleanText = text.replace(/[^\w\s/-]/g, ' ').replace(/\s+/g, ' ');
 
+        // Extract PAN number
         const panMatch = cleanText.match(/[A-Z]{5}[0-9]{4}[A-Z]{1}/);
         const panNumber = panMatch ? panMatch[0] : undefined;
 
+        // Extract date of birth
         const dobPatterns = [
             /(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})/,
             /(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2})/
@@ -191,6 +203,7 @@ class RealOCRService {
             }
         }
 
+        // Extract name
         const excludeWords = ['INCOME', 'TAX', 'DEPARTMENT', 'GOVT', 'GOVERNMENT', 'INDIA', 'PERMANENT', 'ACCOUNT', 'NUMBER', 'SIGNATURE', 'PAN'];
         let extractedName;
         let maxScore = 0;
@@ -219,10 +232,12 @@ class RealOCRService {
         };
     }
 
+    // Extract Aadhaar card data
     private extractAadhaarData(text: string): ExtractedData {
         const lines = text.split('\n').map(line => line.trim()).filter(line => line);
         const cleanText = text.replace(/[^\w\s/-]/g, ' ').replace(/\s+/g, ' ');
 
+        // Extract Aadhaar number
         const aadhaarPatterns = [
             /[2-9]{1}[0-9]{3}[\s-]?[0-9]{4}[\s-]?[0-9]{4}/,
             /[2-9][0-9]{11}/
@@ -238,6 +253,7 @@ class RealOCRService {
             }
         }
 
+        // Extract date of birth
         const dobPatterns = [
             /(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})/,
             /(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2})/
@@ -252,6 +268,7 @@ class RealOCRService {
             }
         }
 
+        // Extract name
         const excludeWords = ['UNIQUE', 'IDENTIFICATION', 'AUTHORITY', 'GOVERNMENT', 'INDIA', 'AADHAAR', 'MALE', 'FEMALE', 'DOB', 'VID'];
         let extractedName;
         let maxScore = 0;
@@ -289,9 +306,11 @@ class RealOCRService {
         try {
             onProgress?.(10);
 
+            // Preprocess image
             const processedImage = await this.preprocessImage(file);
             onProgress?.(30);
 
+            // Prepare form data
             const formData = new FormData();
             formData.append('file', processedImage, 'document.png');
             formData.append('apikey', this.apiKey);
@@ -303,6 +322,7 @@ class RealOCRService {
 
             onProgress?.(50);
 
+            // Call OCR.space API
             const response = await fetch('https://api.ocr.space/parse/image', {
                 method: 'POST',
                 body: formData
@@ -315,6 +335,7 @@ class RealOCRService {
                 const extractedText = result.ParsedResults[0].ParsedText;
                 console.log('OCR Text:', extractedText);
 
+                // Detect document type and extract data
                 const docType = this.detectDocumentType(extractedText);
                 console.log('Document type detected:', docType);
 
@@ -348,6 +369,7 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
 }) => {
     const { toast } = useToast();
 
+    // Form state
     const [formData, setFormData] = useState({
         fullName: data?.fullName || '',
         panNumber: data?.panNumber || '',
@@ -356,22 +378,26 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
         email: data?.email || '',
         businessName: data?.businessName || '',
         gstNumber: data?.gstNumber || '',
-        hasGST: data?.hasGST ?? true
+        hasGST: data?.hasGST ?? true // New GST toggle
     });
 
+    // Document states
     const [panCard, setPanCard] = useState<File | null>(null);
     const [aadhaarCard, setAadhaarCard] = useState<File | null>(null);
     const [businessProof, setBusinessProof] = useState<File | null>(null);
     const [bankStatement, setBankStatement] = useState<File | null>(null);
 
+    // Processing states
     const [panProcessing, setPanProcessing] = useState(false);
     const [aadhaarProcessing, setAadhaarProcessing] = useState(false);
     const [panProgress, setPanProgress] = useState(0);
     const [aadhaarProgress, setAadhaarProgress] = useState(0);
     const [ocrErrors, setOcrErrors] = useState<Record<string, string>>({});
 
+    // Auto-filled fields
     const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
 
+    // Upload to Supabase
     const uploadToSupabase = async (file: File, folder: string): Promise<string> => {
         const fileName = `${Date.now()}_${file.name}`;
         const filePath = `${folder}/${fileName}`;
@@ -388,16 +414,12 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
         return filePath;
     };
 
+    // Handle PAN upload and OCR
     const handlePanUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
         console.log('handlePanUpload called with:', event.target.files);
         const file = event.target.files?.[0];
         if (!file) {
             console.log('No file selected');
-            return;
-        }
-
-        if (!file.type.startsWith('image/')) {
-            setOcrErrors(prev => ({ ...prev, pan: 'Please upload a valid image file' }));
             return;
         }
 
@@ -407,6 +429,7 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
         setOcrErrors(prev => ({ ...prev, pan: '' }));
 
         try {
+            // Process with OCR
             const result = await ocrService.processDocument(file, setPanProgress);
 
             if (result.panNumber) {
@@ -423,9 +446,9 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
                 onDataChange?.(newData);
             }
 
-            // Comment out Supabase upload for now to avoid RLS errors
-            // const uploadPath = await uploadToSupabase(file, 'pan-cards');
-            // console.log('PAN card uploaded to:', uploadPath);
+            // Upload to Supabase
+            const uploadPath = await uploadToSupabase(file, 'pan-cards');
+            console.log('PAN card uploaded to:', uploadPath);
 
             toast({
                 title: "PAN Card Processed",
@@ -448,16 +471,12 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
         }
     }, [formData, onDataChange, toast]);
 
+    // Handle Aadhaar upload and OCR
     const handleAadhaarUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
         console.log('handleAadhaarUpload called with:', event.target.files);
         const file = event.target.files?.[0];
         if (!file) {
             console.log('No file selected');
-            return;
-        }
-
-        if (!file.type.startsWith('image/')) {
-            setOcrErrors(prev => ({ ...prev, aadhaar: 'Please upload a valid image file' }));
             return;
         }
 
@@ -467,6 +486,7 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
         setOcrErrors(prev => ({ ...prev, aadhaar: '' }));
 
         try {
+            // Process with OCR
             const result = await ocrService.processDocument(file, setAadhaarProgress);
 
             if (result.aadhaarNumber) {
@@ -483,9 +503,9 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
                 onDataChange?.(newData);
             }
 
-            // Comment out Supabase upload for now
-            // const uploadPath = await uploadToSupabase(file, 'aadhaar-cards');
-            // console.log('Aadhaar card uploaded to:', uploadPath);
+            // Upload to Supabase
+            const uploadPath = await uploadToSupabase(file, 'aadhaar-cards');
+            console.log('Aadhaar card uploaded to:', uploadPath);
 
             toast({
                 title: "Aadhaar Card Processed",
@@ -508,12 +528,17 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
         }
     }, [formData, onDataChange, toast]);
 
+    // Handle other document uploads
     const handleDocUpload = (docType: 'business' | 'bank') => async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
         try {
-            // Skip upload for now, just set the file state
+            // Upload to Supabase
+            const folder = docType === 'business' ? 'business-proofs' : 'bank-statements';
+            const uploadPath = await uploadToSupabase(file, folder);
+            console.log(`${docType} document uploaded to:`, uploadPath);
+
             if (docType === 'business') {
                 setBusinessProof(file);
             } else {
@@ -521,19 +546,20 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
             }
 
             toast({
-                title: "Document Selected",
-                description: `${docType === 'business' ? 'Business proof' : 'Bank statement'} selected successfully`,
+                title: "Document Uploaded",
+                description: `${docType === 'business' ? 'Business proof' : 'Bank statement'} uploaded successfully`,
             });
 
         } catch (error) {
             toast({
                 variant: "destructive",
                 title: "Upload Failed",
-                description: "Failed to process document",
+                description: "Failed to upload document",
             });
         }
     };
 
+    // Handle form input changes
     const handleInputChange = (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
         const newData = { ...formData, [field]: event.target.value };
         setFormData(newData);
@@ -545,41 +571,59 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
         });
     };
 
+    // Handle GST toggle
     const handleGSTToggle = (checked: boolean) => {
         const newData = { ...formData, hasGST: checked, gstNumber: checked ? formData.gstNumber : '' };
         setFormData(newData);
         onDataChange?.(newData);
     };
 
-    // Simplified DocumentUploadCard with proper event handling
-    const DocumentUploadCard = ({ title, icon: Icon, file, processing, progress, onUpload, description, error }: DocumentUploadCardProps) => (
-        <Card className={`relative ${error ? 'border-red-300' : ''}`}>
-            <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                    <Icon className="h-5 w-5 text-primary" />
-                    {title}
-                    {file && !processing && !error && <CheckCircle className="h-4 w-4 text-green-500 ml-auto" />}
-                    {processing && <RefreshCw className="h-4 w-4 animate-spin text-blue-500 ml-auto" />}
-                    {error && <AlertTriangle className="h-4 w-4 text-red-500 ml-auto" />}
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                <label className="block cursor-pointer">
+    // Document upload component
+    const DocumentUploadCard = ({ title, icon: Icon, file, processing, progress, onUpload, description, error }: DocumentUploadCardProps) => {
+        const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+        const handleAreaClick = () => {
+            if (processing) return;
+            fileInputRef.current?.click();
+        };
+
+        const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            console.log(`${title} file change triggered:`, e.target.files);
+            onUpload(e);
+        };
+
+        return (
+            <Card className={`relative ${error ? 'border-red-300' : ''}`}>
+                <CardHeader className="pb-4">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                        <Icon className="h-5 w-5 text-primary" />
+                        {title}
+                        {file && !processing && !error && <CheckCircle className="h-4 w-4 text-green-500 ml-auto" />}
+                        {processing && <RefreshCw className="h-4 w-4 animate-spin text-blue-500 ml-auto" />}
+                        {error && <AlertTriangle className="h-4 w-4 text-red-500 ml-auto" />}
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
                     <input
+                        ref={fileInputRef}
                         type="file"
                         accept="image/*"
-                        onChange={onUpload}
+                        onChange={handleFileChange}
+                        style={{ display: 'none' }}
                         disabled={processing}
-                        className="hidden"
                     />
-                    <div className={`
+
+                    <div
+                        onClick={handleAreaClick}
+                        className={`
                         flex flex-col items-center justify-center w-full h-32 
                         border-2 border-dashed rounded-lg transition-colors
                         ${processing ? 'cursor-not-allowed' : 'cursor-pointer'}
                         ${file && !error ? 'border-green-300 bg-green-50' : 'border-gray-300 hover:bg-gray-50'}
                         ${processing ? 'border-blue-300 bg-blue-50' : ''}
                         ${error ? 'border-red-300 bg-red-50' : ''}
-                    `}>
+                    `}
+                    >
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
                             {processing ? (
                                 <RefreshCw className="h-8 w-8 text-blue-500 animate-spin mb-2" />
@@ -604,26 +648,29 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
                             </p>
                         </div>
                     </div>
-                </label>
 
-                {processing && (
-                    <div className="mt-3">
-                        <Progress value={progress} className="w-full h-2" />
-                    </div>
-                )}
+                    {processing && (
+                        <div className="mt-3">
+                            <Progress value={progress} className="w-full h-2" />
+                        </div>
+                    )}
 
-                {error && (
-                    <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-                        {error}
-                    </div>
-                )}
-            </CardContent>
-        </Card>
-    );
+                    {error && (
+                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                            {error}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        );
+    };
 
+    // Auto-filled input component
     const AutoFillInput = ({ label, field, placeholder, type = "text", maxLength, required = false }: AutoFillInputProps) => {
         const isAutoFilled = autoFilledFields.has(field);
         const fieldValue = formData[field as keyof typeof formData];
+
+        // Convert boolean to string for input value
         const inputValue = typeof fieldValue === 'boolean' ? fieldValue.toString() : fieldValue;
 
         return (
@@ -651,11 +698,13 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
 
     return (
         <div className="max-w-7xl mx-auto p-6 space-y-8">
+            {/* Header */}
             <div className="text-center">
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">Merchant Registration</h1>
                 <p className="text-gray-600">Upload your documents for automatic data extraction</p>
             </div>
 
+            {/* GST Toggle */}
             <Card className="bg-blue-50 border-blue-200">
                 <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -682,6 +731,7 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
                 </CardContent>
             </Card>
 
+            {/* Document Uploads */}
             <div className="space-y-4">
                 <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
                     <Camera className="h-5 w-5 text-primary" />
@@ -712,6 +762,7 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
                 </div>
             </div>
 
+            {/* Form Fields */}
             <div className="space-y-4">
                 <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
                     <User className="h-5 w-5 text-primary" />
@@ -765,18 +816,22 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
                         required={true}
                     />
 
+                    {/* Conditionally render GST field */}
                     {formData.hasGST && (
-                        <AutoFillInput
-                            label="GST Number"
-                            field="gstNumber"
-                            placeholder="22AAAAA0000A1Z5"
-                            maxLength={15}
-                            required={true}
-                        />
+                        <div>
+                            <AutoFillInput
+                                label="GST Number"
+                                field="gstNumber"
+                                placeholder="22AAAAA0000A1Z5"
+                                maxLength={15}
+                                required={true}
+                            />
+                        </div>
                     )}
                 </div>
             </div>
 
+            {/* Supporting Documents */}
             <div className="space-y-4">
                 <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
                     <FileText className="h-5 w-5 text-primary" />
@@ -801,6 +856,7 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
                 </div>
             </div>
 
+            {/* Processing Status Messages */}
             {(panProcessing || aadhaarProcessing) && (
                 <Card className="bg-blue-50 border-blue-200">
                     <CardContent className="p-4">
@@ -817,6 +873,7 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
                 </Card>
             )}
 
+            {/* Success Message */}
             {(autoFilledFields.size > 0) && !panProcessing && !aadhaarProcessing && (
                 <Card className="bg-green-50 border-green-200">
                     <CardContent className="p-4">
@@ -833,6 +890,7 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
                 </Card>
             )}
 
+            {/* Image Quality Tips */}
             <Card className="bg-gray-50">
                 <CardContent className="p-4">
                     <h4 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
@@ -850,6 +908,7 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
                 </CardContent>
             </Card>
 
+            {/* Navigation Buttons */}
             <div className="flex justify-between pt-6">
                 <Button variant="outline" className="px-8" onClick={onPrev}>
                     Back
