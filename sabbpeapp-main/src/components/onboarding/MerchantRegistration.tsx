@@ -579,7 +579,16 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
 
     // Document upload component
     const DocumentUploadCard = ({ title, icon: Icon, file, processing, progress, onUpload, description, error }: DocumentUploadCardProps) => {
-        const inputId = `${title.toLowerCase().replace(/\s+/g, '-')}-upload`;
+        const handleClick = () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.style.display = 'none';
+            input.onchange = (e) => onUpload(e as unknown as React.ChangeEvent<HTMLInputElement>);
+            document.body.appendChild(input);
+            input.click();
+            document.body.removeChild(input);
+        };
 
         return (
             <Card className={`relative ${error ? 'border-red-300' : ''}`}>
@@ -593,20 +602,8 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <input
-                        id={inputId}
-                        type="file"
-                        className="hidden"
-                        accept="image/*"
-                        onChange={(e) => {
-                            console.log(`${title} file selected:`, e.target.files);
-                            onUpload(e);
-                        }}
-                        disabled={processing}
-                    />
-
-                    <label
-                        htmlFor={inputId}
+                    <div
+                        onClick={handleClick}
                         className={`
                         flex flex-col items-center justify-center w-full h-32 
                         border-2 border-dashed rounded-lg cursor-pointer transition-colors
@@ -638,7 +635,7 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
                                 )}
                             </p>
                         </div>
-                    </label>
+                    </div>
 
                     {processing && (
                         <div className="mt-3">
