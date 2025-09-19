@@ -415,11 +415,10 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
 
     // Handle PAN upload and OCR
     const handlePanUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+        console.log('handlePanUpload called with:', event.target.files);
         const file = event.target.files?.[0];
-        if (!file) return;
-
-        if (!file.type.startsWith('image/')) {
-            setOcrErrors(prev => ({ ...prev, pan: 'Please upload a valid image file' }));
+        if (!file) {
+            console.log('No file selected');
             return;
         }
 
@@ -473,11 +472,10 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
 
     // Handle Aadhaar upload and OCR
     const handleAadhaarUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+        console.log('handleAadhaarUpload called with:', event.target.files);
         const file = event.target.files?.[0];
-        if (!file) return;
-
-        if (!file.type.startsWith('image/')) {
-            setOcrErrors(prev => ({ ...prev, aadhaar: 'Please upload a valid image file' }));
+        if (!file) {
+            console.log('No file selected');
             return;
         }
 
@@ -580,72 +578,49 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
     };
 
     // Document upload component
-    const DocumentUploadCard = ({ title, icon: Icon, file, processing, progress, onUpload, description, error }: DocumentUploadCardProps) => (
-        <Card className={`relative ${error ? 'border-red-300' : ''}`}>
-            <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                    <Icon className="h-5 w-5 text-primary" />
-                    {title}
-                    {file && !processing && !error && <CheckCircle className="h-4 w-4 text-green-500 ml-auto" />}
-                    {processing && <RefreshCw className="h-4 w-4 animate-spin text-blue-500 ml-auto" />}
-                    {error && <AlertTriangle className="h-4 w-4 text-red-500 ml-auto" />}
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                <label className={`
-                    flex flex-col items-center justify-center w-full h-32 
-                    border-2 border-dashed rounded-lg cursor-pointer transition-colors
-                    ${file && !error ? 'border-green-300 bg-green-50' : 'border-gray-300 hover:bg-gray-50'}
-                    ${processing ? 'border-blue-300 bg-blue-50' : ''}
-                    ${error ? 'border-red-300 bg-red-50' : ''}
-                `}>
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        {processing ? (
-                            <RefreshCw className="h-8 w-8 text-blue-500 animate-spin mb-2" />
-                        ) : file && !error ? (
-                            <CheckCircle className="h-8 w-8 text-green-500 mb-2" />
-                        ) : error ? (
-                            <AlertTriangle className="h-8 w-8 text-red-500 mb-2" />
-                        ) : (
-                            <Upload className="h-8 w-8 text-gray-400 mb-2" />
-                        )}
+    const DocumentUploadCard = ({ title, icon: Icon, file, processing, progress, onUpload, description, error }: DocumentUploadCardProps) => {
+        console.log(`DocumentUploadCard rendered for ${title}`, { file, processing, onUpload: !!onUpload });
 
-                        <p className="mb-2 text-sm text-gray-500">
-                            {processing ? (
-                                <span className="font-semibold">Processing... {Math.round(progress || 0)}%</span>
-                            ) : file && !error ? (
-                                <span className="font-semibold text-green-600">✓ {file.name}</span>
-                            ) : error ? (
-                                <span className="font-semibold text-red-600">Upload failed</span>
-                            ) : (
-                                <span className="font-semibold">{description}</span>
-                            )}
-                        </p>
-                    </div>
+        return (
+            <Card className={`relative ${error ? 'border-red-300' : ''}`}>
+                <CardHeader className="pb-4">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                        <Icon className="h-5 w-5 text-primary" />
+                        {title}
+                        {file && !processing && !error && <CheckCircle className="h-4 w-4 text-green-500 ml-auto" />}
+                        {processing && <RefreshCw className="h-4 w-4 animate-spin text-blue-500 ml-auto" />}
+                        {error && <AlertTriangle className="h-4 w-4 text-red-500 ml-auto" />}
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <label
+                        onClick={() => console.log(`${title} label clicked`)}
+                        className={`
+                        flex flex-col items-center justify-center w-full h-32 
+                        border-2 border-dashed rounded-lg cursor-pointer transition-colors
+                        ${file && !error ? 'border-green-300 bg-green-50' : 'border-gray-300 hover:bg-gray-50'}
+                        ${processing ? 'border-blue-300 bg-blue-50' : ''}
+                        ${error ? 'border-red-300 bg-red-50' : ''}
+                    `}>
+                        {/* ... existing content ... */}
 
-                    <input
-                        type="file"
-                        className="hidden"
-                        accept="image/*"
-                        onChange={onUpload}
-                        disabled={processing}
-                    />
-                </label>
-
-                {processing && (
-                    <div className="mt-3">
-                        <Progress value={progress} className="w-full h-2" />
-                    </div>
-                )}
-
-                {error && (
-                    <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-                        {error}
-                    </div>
-                )}
-            </CardContent>
-        </Card>
-    );
+                        <input
+                            type="file"
+                            className="hidden"
+                            accept="image/*"
+                            onChange={(e) => {
+                                console.log(`${title} file input changed:`, e.target.files);
+                                onUpload(e);
+                            }}
+                            disabled={processing}
+                            onClick={() => console.log(`${title} input clicked`)}
+                        />
+                    </label>
+                    {/* ... rest of component ... */}
+                </CardContent>
+            </Card>
+        );
+    };
 
     // Auto-filled input component
     const AutoFillInput = ({ label, field, placeholder, type = "text", maxLength, required = false }: AutoFillInputProps) => {
