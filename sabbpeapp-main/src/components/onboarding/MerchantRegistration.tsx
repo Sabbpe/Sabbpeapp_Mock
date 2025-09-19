@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { createClient } from '@supabase/supabase-js';
+
 import {
     Upload,
     FileText,
@@ -24,9 +24,7 @@ import {
 } from 'lucide-react';
 
 // Supabase client (replace with your actual values)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { supabase } from '@/integrations/supabase/client';
 
 interface ExtractedData {
     panNumber?: string;
@@ -35,12 +33,40 @@ interface ExtractedData {
     dateOfBirth?: string;
     confidence: number;
 }
+interface DocumentUploadCardProps {
+    title: string;
+    icon: React.ComponentType<{ className?: string }>;
+    file: File | null;
+    processing?: boolean;
+    progress?: number;
+    onUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    description: string;
+    error?: string;
+}
+interface AutoFillInputProps {
+    label: string;
+    field: string;
+    placeholder: string;
+    type?: string;
+    maxLength?: number;
+    required?: boolean;
+}
 
+interface FormData {
+    fullName: string;
+    panNumber: string;
+    aadhaarNumber: string;
+    mobileNumber: string;
+    email: string;
+    businessName: string;
+    gstNumber: string;
+    hasGST: boolean;
+}
 interface MerchantRegistrationProps {
     onNext?: () => void;
     onPrev?: () => void;
-    data?: any;
-    onDataChange?: (data: any) => void;
+    data?: FormData;
+    onDataChange?: (data: FormData) => void;
 }
 
 // Real OCR Service using OCR.space
@@ -138,7 +164,7 @@ class RealOCRService {
         const aadhaarMatches = aadhaarPatterns.filter(pattern => pattern.test(cleanText)).length;
 
         const panNumberPattern = /[A-Z]{5}[0-9]{4}[A-Z]{1}/;
-        const aadhaarNumberPattern = /[2-9]{1}[0-9]{3}[\s\-]?[0-9]{4}[\s\-]?[0-9]{4}/;
+        const aadhaarNumberPattern = /[2-9]{1}[0-9]{3}[\s-]?[0-9]{4}[\s-]?[0-9]{4}/;
 
         const hasPanNumber = panNumberPattern.test(cleanText);
         const hasAadhaarNumber = aadhaarNumberPattern.test(cleanText);
@@ -155,7 +181,7 @@ class RealOCRService {
     // Extract PAN card data
     private extractPANData(text: string): ExtractedData {
         const lines = text.split('\n').map(line => line.trim()).filter(line => line);
-        const cleanText = text.replace(/[^\w\s\/\-]/g, ' ').replace(/\s+/g, ' ');
+        const cleanText = text.replace(/[^\w\s/-]/g, ' ').replace(/\s+/g, ' ');
 
         // Extract PAN number
         const panMatch = cleanText.match(/[A-Z]{5}[0-9]{4}[A-Z]{1}/);
@@ -163,8 +189,8 @@ class RealOCRService {
 
         // Extract date of birth
         const dobPatterns = [
-            /(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})/,
-            /(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2})/
+            /(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})/,
+            /(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2})/
         ];
 
         let dateOfBirth;
@@ -208,11 +234,11 @@ class RealOCRService {
     // Extract Aadhaar card data
     private extractAadhaarData(text: string): ExtractedData {
         const lines = text.split('\n').map(line => line.trim()).filter(line => line);
-        const cleanText = text.replace(/[^\w\s\/\-]/g, ' ').replace(/\s+/g, ' ');
+        const cleanText = text.replace(/[^\w\s/-]/g, ' ').replace(/\s+/g, ' ');
 
         // Extract Aadhaar number
         const aadhaarPatterns = [
-            /[2-9]{1}[0-9]{3}[\s\-]?[0-9]{4}[\s\-]?[0-9]{4}/,
+            /[2-9]{1}[0-9]{3}[\s-]?[0-9]{4}[\s-]?[0-9]{4}/,
             /[2-9][0-9]{11}/
         ];
 
@@ -220,7 +246,7 @@ class RealOCRService {
         for (const pattern of aadhaarPatterns) {
             const match = cleanText.match(pattern);
             if (match) {
-                const rawNumber = match[0].replace(/[\s\-]/g, '');
+                const rawNumber = match[0].replace(/[\s-]/g, '');
                 aadhaarNumber = rawNumber.replace(/(\d{4})(\d{4})(\d{4})/, '$1 $2 $3');
                 break;
             }
@@ -228,8 +254,8 @@ class RealOCRService {
 
         // Extract date of birth
         const dobPatterns = [
-            /(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})/,
-            /(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2})/
+            /(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})/,
+            /(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2})/
         ];
 
         let dateOfBirth;
@@ -554,7 +580,7 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
     };
 
     // Document upload component
-    const DocumentUploadCard = ({ title, icon: Icon, file, processing, progress, onUpload, description, error }: any) => (
+    const DocumentUploadCard = ({ title, icon: Icon, file, processing, progress, onUpload, description, error }: DocumentUploadCardProps) => (
         <Card className={`relative ${error ? 'border-red-300' : ''}`}>
             <CardHeader className="pb-4">
                 <CardTitle className="flex items-center gap-2 text-lg">
@@ -622,8 +648,12 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
     );
 
     // Auto-filled input component
-    const AutoFillInput = ({ label, field, placeholder, type = "text", maxLength, required = false }: any) => {
+    const AutoFillInput = ({ label, field, placeholder, type = "text", maxLength, required = false }: AutoFillInputProps) => {
         const isAutoFilled = autoFilledFields.has(field);
+        const fieldValue = formData[field as keyof typeof formData];
+
+        // Convert boolean to string for input value
+        const inputValue = typeof fieldValue === 'boolean' ? fieldValue.toString() : fieldValue;
 
         return (
             <div>
@@ -638,7 +668,7 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
                 </Label>
                 <Input
                     type={type}
-                    value={formData[field as keyof typeof formData]}
+                    value={inputValue}
                     onChange={handleInputChange(field)}
                     placeholder={placeholder}
                     maxLength={maxLength}
