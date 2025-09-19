@@ -579,7 +579,7 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
 
     // Document upload component
     const DocumentUploadCard = ({ title, icon: Icon, file, processing, progress, onUpload, description, error }: DocumentUploadCardProps) => {
-        console.log(`DocumentUploadCard rendered for ${title}`, { file, processing, onUpload: !!onUpload });
+        const inputId = `${title.toLowerCase().replace(/\s+/g, '-')}-upload`;
 
         return (
             <Card className={`relative ${error ? 'border-red-300' : ''}`}>
@@ -593,30 +593,64 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
+                    <input
+                        id={inputId}
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => {
+                            console.log(`${title} file selected:`, e.target.files);
+                            onUpload(e);
+                        }}
+                        disabled={processing}
+                    />
+
                     <label
-                        onClick={() => console.log(`${title} label clicked`)}
+                        htmlFor={inputId}
                         className={`
                         flex flex-col items-center justify-center w-full h-32 
                         border-2 border-dashed rounded-lg cursor-pointer transition-colors
                         ${file && !error ? 'border-green-300 bg-green-50' : 'border-gray-300 hover:bg-gray-50'}
-                        ${processing ? 'border-blue-300 bg-blue-50' : ''}
+                        ${processing ? 'border-blue-300 bg-blue-50 cursor-not-allowed' : ''}
                         ${error ? 'border-red-300 bg-red-50' : ''}
-                    `}>
-                        {/* ... existing content ... */}
+                    `}
+                    >
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            {processing ? (
+                                <RefreshCw className="h-8 w-8 text-blue-500 animate-spin mb-2" />
+                            ) : file && !error ? (
+                                <CheckCircle className="h-8 w-8 text-green-500 mb-2" />
+                            ) : error ? (
+                                <AlertTriangle className="h-8 w-8 text-red-500 mb-2" />
+                            ) : (
+                                <Upload className="h-8 w-8 text-gray-400 mb-2" />
+                            )}
 
-                        <input
-                            type="file"
-                            className="hidden"
-                            accept="image/*"
-                            onChange={(e) => {
-                                console.log(`${title} file input changed:`, e.target.files);
-                                onUpload(e);
-                            }}
-                            disabled={processing}
-                            onClick={() => console.log(`${title} input clicked`)}
-                        />
+                            <p className="mb-2 text-sm text-gray-500">
+                                {processing ? (
+                                    <span className="font-semibold">Processing... {Math.round(progress || 0)}%</span>
+                                ) : file && !error ? (
+                                    <span className="font-semibold text-green-600">✓ {file.name}</span>
+                                ) : error ? (
+                                    <span className="font-semibold text-red-600">Upload failed</span>
+                                ) : (
+                                    <span className="font-semibold">{description}</span>
+                                )}
+                            </p>
+                        </div>
                     </label>
-                    {/* ... rest of component ... */}
+
+                    {processing && (
+                        <div className="mt-3">
+                            <Progress value={progress} className="w-full h-2" />
+                        </div>
+                    )}
+
+                    {error && (
+                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                            {error}
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         );
