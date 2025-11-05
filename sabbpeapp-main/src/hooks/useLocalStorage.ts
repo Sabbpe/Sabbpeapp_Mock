@@ -1,4 +1,4 @@
-// hooks/useLocalStorage.ts
+﻿// hooks/useLocalStorage.ts
 import { useState, useCallback } from 'react';
 
 export const useLocalStorage = <T>(key: string, initialValue: T) => {
@@ -18,16 +18,21 @@ export const useLocalStorage = <T>(key: string, initialValue: T) => {
 
     const setValue = useCallback((value: T | ((val: T) => T)) => {
         try {
-            const valueToStore = value instanceof Function ? value(storedValue) : value;
-            setStoredValue(valueToStore);
+            // Use setStoredValue callback form to get current value
+            setStoredValue(currentValue => {
+                const valueToStore = value instanceof Function ? value(currentValue) : value;
 
-            if (typeof window !== 'undefined') {
-                window.localStorage.setItem(key, JSON.stringify(valueToStore));
-            }
+                // Save to localStorage
+                if (typeof window !== 'undefined') {
+                    window.localStorage.setItem(key, JSON.stringify(valueToStore));
+                }
+
+                return valueToStore;
+            });
         } catch (error) {
             console.error(`Error setting localStorage key "${key}":`, error);
         }
-    }, [key, storedValue]);
+    }, [key]); // ✅ Only depend on key, not storedValue
 
     const removeValue = useCallback(() => {
         try {
@@ -38,8 +43,7 @@ export const useLocalStorage = <T>(key: string, initialValue: T) => {
         } catch (error) {
             console.error(`Error removing localStorage key "${key}":`, error);
         }
-    }, [key, initialValue]);
+    }, [key, initialValue]); // Keep initialValue as it's stable
 
     return [storedValue, setValue, removeValue] as const;
 };
-

@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 
 // Supabase client (replace with your actual values)
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 
 interface ExtractedData {
     panNumber?: string;
@@ -404,6 +404,35 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
         gstNumber: data?.gstNumber || '',
         hasGST: data?.hasGST ?? true
     });
+    const AutoFillInput = ({ label, field, placeholder, type = "text", maxLength, required = false }: AutoFillInputProps) => {
+        const isAutoFilled = autoFilledFields.has(field);
+        const fieldValue = formData[field];
+
+        // Convert boolean to string for input value
+        const inputValue = typeof fieldValue === 'boolean' ? fieldValue.toString() : fieldValue;
+
+        return (
+            <div>
+                <Label className="flex items-center gap-2 mb-2">
+                    {label} {required && <span className="text-red-500">*</span>}
+                    {isAutoFilled && (
+                        <span className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                            <Sparkles className="h-3 w-3" />
+                            Auto-filled
+                        </span>
+                    )}
+                </Label>
+                <Input
+                    type={type}
+                    value={inputValue}
+                    onChange={handleInputChange(field)}
+                    placeholder={placeholder}
+                    maxLength={maxLength}
+                    className={isAutoFilled ? 'border-green-300 bg-green-50' : ''}
+                />
+            </div>
+        );
+    };
 
     // Document states
     const [panDocument, setPanDocument] = useState<DocumentState>({
@@ -699,15 +728,20 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
 
     // Handle form input changes
     const handleInputChange = useCallback((field: keyof FormData) => (event: React.ChangeEvent<HTMLInputElement>) => {
-        const newData = { ...formData, [field]: event.target.value };
-        setFormData(newData);
-        onDataChange?.(newData);
+        const value = event.target.value;
+
+        setFormData(prev => {
+            const newData = { ...prev, [field]: value };
+            onDataChange?.(newData);
+            return newData;
+        });
+
         setAutoFilledFields(prev => {
             const updated = new Set(prev);
             updated.delete(field);
             return updated;
         });
-    }, [formData, onDataChange]);
+    }, [onDataChange]);
 
     // Handle GST toggle
     const handleGSTToggle = useCallback((checked: boolean) => {
@@ -845,35 +879,7 @@ const MerchantRegistration: React.FC<MerchantRegistrationProps> = ({
     };
 
     // Auto-filled input component
-    const AutoFillInput = ({ label, field, placeholder, type = "text", maxLength, required = false }: AutoFillInputProps) => {
-        const isAutoFilled = autoFilledFields.has(field);
-        const fieldValue = formData[field];
-
-        // Convert boolean to string for input value
-        const inputValue = typeof fieldValue === 'boolean' ? fieldValue.toString() : fieldValue;
-
-        return (
-            <div>
-                <Label className="flex items-center gap-2 mb-2">
-                    {label} {required && <span className="text-red-500">*</span>}
-                    {isAutoFilled && (
-                        <span className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
-                            <Sparkles className="h-3 w-3" />
-                            Auto-filled
-                        </span>
-                    )}
-                </Label>
-                <Input
-                    type={type}
-                    value={inputValue}
-                    onChange={handleInputChange(field)}
-                    placeholder={placeholder}
-                    maxLength={maxLength}
-                    className={isAutoFilled ? 'border-green-300 bg-green-50' : ''}
-                />
-            </div>
-        );
-    };
+    
 
     return (
         <div className="max-w-7xl mx-auto p-6 space-y-8">

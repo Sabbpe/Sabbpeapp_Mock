@@ -1,21 +1,44 @@
-import React, { useState, useRef } from 'react';
+﻿import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Camera, MapPin, FileText, Video, CheckCircle, AlertCircle } from 'lucide-react';
 import { useKYCValidation } from '@/hooks/useKYCValidation';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import { useMerchantData } from '@/hooks/useMerchantData';
-import { useOnboardingFlow } from '@/hooks/useOnboardingFlow';
 import { useToast } from '@/hooks/use-toast';
 
 interface KYCVerificationProps {
     onNext: () => void;
     onPrev: () => void;
+    data?: {
+        kycData?: {
+            isVideoCompleted?: boolean;
+            selfieUrl?: string;
+            locationVerified?: boolean;
+            latitude?: number;
+            longitude?: number;
+        };
+        panNumber?: string;
+        aadhaarNumber?: string;
+        [key: string]: unknown;
+    };
+    onDataChange?: (data: {
+        kycData?: {
+            isVideoCompleted?: boolean;
+            selfieUrl?: string;
+            locationVerified?: boolean;
+            latitude?: number;
+            longitude?: number;
+        };
+        [key: string]: unknown;
+    }) => void;
 }
 
 export const KYCVerification: React.FC<KYCVerificationProps> = ({
     onNext,
     onPrev,
+    data,
+    onDataChange
 }) => {
     const [isVideoActive, setIsVideoActive] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -24,8 +47,7 @@ export const KYCVerification: React.FC<KYCVerificationProps> = ({
     const streamRef = useRef<MediaStream | null>(null);
 
     const { toast } = useToast();
-    const { nextStep, prevStep } = useOnboardingFlow();
-    const { updateKYCData, merchantProfile } = useMerchantData();
+    const { merchantProfile } = useMerchantData();
     const { uploadFile } = useFileUpload();
     const {
         kycState,
@@ -79,32 +101,28 @@ export const KYCVerification: React.FC<KYCVerificationProps> = ({
             const context = canvas.getContext('2d');
 
             if (context) {
-                // Set canvas dimensions to match video
                 canvas.width = videoRef.current.videoWidth;
                 canvas.height = videoRef.current.videoHeight;
-
-                // Draw current video frame to canvas
                 context.drawImage(videoRef.current, 0, 0);
 
-                // Convert to blob
                 canvas.toBlob(async (blob) => {
                     if (blob && merchantProfile) {
-                        // Create file from blob
                         const file = new File([blob], 'kyc-selfie.jpg', { type: 'image/jpeg' });
-
-                        // Upload to Supabase
                         const uploadPath = `${merchantProfile.user_id}/kyc-selfie-${Date.now()}.jpg`;
+
                         const uploadResult = await uploadFile(file, 'merchant-documents', uploadPath);
 
                         if (uploadResult) {
-                            // Update KYC state
-                            const selfieUrl = completeVideoKYC(blob);
+                            completeVideoKYC(blob);
 
-                            // Update database
-                            await updateKYCData({
-                                video_kyc_completed: true,
-                                selfie_file_path: uploadPath,
-                                kyc_status: 'uploaded'
+                            // UPDATE PARENT DATA WITH PATH
+                            onDataChange?.({
+                                ...data,
+                                kycData: {
+                                    ...data?.kycData,
+                                    isVideoCompleted: true,
+                                    selfieUrl: uploadPath
+                                }
                             });
 
                             toast({
@@ -133,24 +151,26 @@ export const KYCVerification: React.FC<KYCVerificationProps> = ({
         try {
             const locationData = await captureLocation();
 
-            // Update database with location
-            if (merchantProfile) {
-                await updateKYCData({
-                    location_captured: true,
+            // UPDATE PARENT DATA WITH COORDINATES
+            onDataChange?.({
+                ...data,
+                kycData: {
+                    ...data?.kycData,
+                    locationVerified: true,
                     latitude: locationData.lat,
-                    longitude: locationData.lng,
-                });
-            }
+                    longitude: locationData.lng
+                }
+            });
 
             toast({
                 title: "Location Captured",
-                description: `Location: ${locationData.address}`,
+                description: `Location: ${locationData.address || 'Captured successfully'}`,
             });
-        } catch (error: any) {
+        } catch (error: unknown) {
             toast({
                 variant: "destructive",
                 title: "Location Error",
-                description: error.message,
+                description: error instanceof Error ? error.message : "Failed to capture location",
             });
         }
     };
@@ -167,9 +187,7 @@ export const KYCVerification: React.FC<KYCVerificationProps> = ({
         }
     };
 
-    // Auto-verify documents on mount (simulate OCR processing)
     React.useEffect(() => {
-        // Simulate document verification delay
         const timer = setTimeout(() => {
             toast({
                 title: "Documents Verified",
@@ -216,15 +234,17 @@ export const KYCVerification: React.FC<KYCVerificationProps> = ({
                                 <div className="p-3 bg-card rounded-lg">
                                     <span className="font-medium">PAN Number:</span>
                                     <span className="ml-2 text-primary">
-                                        {merchantProfile?.pan_number || 'Processing...'}
+                                        {data?.panNumber || merchantProfile?.pan_number || 'Processing...'}
                                     </span>
                                 </div>
                                 <div className="p-3 bg-card rounded-lg">
                                     <span className="font-medium">Aadhaar:</span>
                                     <span className="ml-2 text-primary">
-                                        {merchantProfile?.aadhaar_number ?
-                                            `****-****-${merchantProfile.aadhaar_number.slice(-4)}` :
-                                            'Processing...'
+                                        {data?.aadhaarNumber ?
+                                            `****-****-${data.aadhaarNumber.slice(-4)}` :
+                                            merchantProfile?.aadhaar_number ?
+                                                `****-****-${merchantProfile.aadhaar_number.slice(-4)}` :
+                                                'Processing...'
                                         }
                                     </span>
                                 </div>
@@ -391,8 +411,7 @@ export const KYCVerification: React.FC<KYCVerificationProps> = ({
                         <div className="space-y-3">
                             <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center ${true ? 'bg-primary text-white' : 'bg-muted'
-                                        }`}>
+                                    <div className="w-6 h-6 rounded-full flex items-center justify-center bg-primary text-white">
                                         <CheckCircle className="h-4 w-4" />
                                     </div>
                                     <span>Document OCR Processing</span>

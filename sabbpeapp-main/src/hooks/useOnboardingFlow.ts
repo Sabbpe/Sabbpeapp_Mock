@@ -2,7 +2,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-type OnboardingStep = 'welcome' | 'registration' | 'kyc' | 'bank-details' | 'review' | 'dashboard';
+type OnboardingStep = 'welcome' | 'products'| 'registration' | 'kyc' | 'bank-details'  | 'review' | 'dashboard';
 
 export const useOnboardingFlow = () => {
     const navigate = useNavigate();
@@ -12,13 +12,13 @@ export const useOnboardingFlow = () => {
     const getInitialStep = (): OnboardingStep => {
         const searchParams = new URLSearchParams(location.search);
         const stepParam = searchParams.get('step') as OnboardingStep;
-        const validSteps = ['welcome', 'registration', 'kyc', 'bank-details', 'review', 'dashboard'];
+        const validSteps = ['welcome', 'products','registration', 'kyc', 'bank-details', 'review', 'dashboard'];
         return validSteps.includes(stepParam) ? stepParam : 'welcome';
     };
 
     const [currentStep, setCurrentStep] = useState<OnboardingStep>(getInitialStep);
 
-    const steps: OnboardingStep[] = ['welcome', 'registration', 'kyc', 'bank-details', 'review'];
+    const steps: OnboardingStep[] = ['welcome','products','registration', 'kyc', 'bank-details','review'];
     const currentStepIndex = steps.indexOf(currentStep);
     const totalSteps = steps.length;
     const progress = ((currentStepIndex + 1) / totalSteps) * 100;
